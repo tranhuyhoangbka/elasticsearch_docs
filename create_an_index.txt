@@ -1,0 +1,47 @@
+curl -X PUT "localhost:9200/news" -d '{
+"settings": {
+"index": {
+"number_of_shards": 2,
+"number_of_replicas": 1
+}
+}
+}'
+-----------------------------------
+three steps
+1, make a json file include data
+2, create index and configuration analyzer for it
+ex:
+curl -X PUT "http://localhost:9200/wiki" -d '{
+  "index" : {
+    "number_of_shards" : 4,
+    "number_of_replicas" : 1 ,
+    "analysis":{
+      "analyzer":{
+        "content" : {
+          "type" : "custom",
+          "tokenizer" : "standard",
+          "filter" : ["lowercase" , "stop" , "kstem"],
+          "char_filter" : ["html_strip"]
+        }
+      }
+    }
+  }
+}'
+
+3, configuration field mapping with type data
+curl -X PUT "http://localhost:9200/wiki/articles/_mapping" -d '{
+  "articles" :{
+    "_all" : {"enabled" : true },
+    "properties" :{
+      "Title" : { "type" : "string" , "Analyzer":"content" ,"include_in_all" : true},
+      "link" : { "type" : "string" , "include_in_all" : false ,"index" : "no" },
+      "Author" : { "type" : "string" , "include_in_all" : false},
+      "timestamp" : { "type" : "date", "format" : "dd-MM-yyyy HH:mm:ss" , "include_in_all" : false },
+      "html" : { "type" : "string" ,"Analyzer":"content" , "include_in_all" : true }
+    }
+  }
+}'
+
+4, import json data to index
+curl -XPOST 'localhost:9200/bank/account/_bulk?pretty&refresh' --data-binary "@accounts.json"
+

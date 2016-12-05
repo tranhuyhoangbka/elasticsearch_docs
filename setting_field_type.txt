@@ -1,0 +1,9 @@
+ curl -X PUT "localhost:9200/news/public/_mapping" -d ' {
+quote> "public": {
+quote> "properties": {
+quote> "Title": {"type": "string"},
+quote> "Content": {"type": "string"},
+quote> "DOP": {"type": "date"}
+quote> }
+quote> }
+quote> }'

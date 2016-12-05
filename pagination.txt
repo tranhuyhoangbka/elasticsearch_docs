@@ -1,0 +1,26 @@
+use params:
+- size = 5 (defaults to 10).
+- from = 0 , 5 , 10 , 15 , 20 (defaults to 0 ). This depends on the page number
+you need.
+
+vd:
+curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
+"from": 0,
+"size": 4,
+"query": {
+  "simple_query_string": {
+    "query": "Santiago",
+    "fields": ["_all"]
+   }
+},
+"highlight": {
+  "fields": {
+    "html": {
+      "pre_tags"   : ["<p>"],
+      "post_tags": ["</p>"],
+      "fragment_size": 10,
+      "number_of_fragments": 3
+    }
+  }
+}
+}'

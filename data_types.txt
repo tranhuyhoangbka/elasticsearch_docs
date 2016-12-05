@@ -1,0 +1,12 @@
+Type          Definition
+
+String        Text
+Integer       32-bit integers
+Long          64-bit integers
+Float         IEEE floats
+Double        Double precision floats
+Boolean       True or false
+Date          Date/Time stored as epoch
+geo_point     Latitude/Longitude
+Null          Null value
+Ipv4          IP version 4

@@ -1,0 +1,44 @@
+cach 1: setting in configuration file
+in /etc/elasticsearch/elasticsearch.yml file add lines
+index :
+analysis :
+analyzer :
+myCustomAnalyzer :
+tokenizer : smallLetter
+filter : [lowercase, stopWord]
+char_filter : [html_strip]
+
+tokenizer :
+smallLetter:
+type : standard
+max_token_length : 900
+
+filter :
+stopWord:
+type : stop
+stopwords : ["are" , "the" , "is"]
+
+=>1, strip html tab
+2, not be any difference between lowercase and uppercase,
+3, filter stop words
+4, strip words > 900 chars
+=====================================
+cach 2: curl
+Snowball analyzer with standard tokenizer, standard filter, lowercase filter, stop filter, snowball, stemming filter
+curl -X PUT "http://localhost:9200/wiki" -d '{
+"index" : {
+"number_of_shards" : 4,
+"number_of_replicas" : 1 ,
+"analysis":{
+"analyzer":{
+"content" : {
+"type" : "custom",
+"tokenizer" : "standard",
+"filter" : ["lowercase" , "stop" , "kstem"],
+"char_filter" : ["html_strip"]
+}
+}
+}
+}
+}'
+

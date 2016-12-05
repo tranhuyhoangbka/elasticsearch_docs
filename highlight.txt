@@ -1,0 +1,27 @@
+{
+"query" : {...},
+"highlight" : {
+"fields" : {
+"Content" : {}
+}
+}
+}
+-----------------------
+{
+"query" : {...},
+"highlight" : {
+"pre_tags" : ["<b>"],
+"post_tags" : ["</b>"],
+"fields" : {
+"Content" : {}
+}
+}
+}
+
+output
+"_source":{"link": "http://jast.co/monica","Author": "anonymous","timestamp": "09-02-2014 14:16:00","Title": "The Curious Incident of the Dog in the Night-Time", "html": "Jazmyn Benjamin met one of her idols at a Knicks game, and left Madison Square Garden with some career advice."},
+      "highlight" : {
+        "Title" : [ "The Curious <em>Incident</em> of the Dog in the Night-Time" ]
+      }
+    } ]
+
