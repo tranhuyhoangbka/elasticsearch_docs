@@ -1,0 +1,18 @@
+curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
+"query": {
+  "simple_query_string": {
+    "query": "sms",
+    "fields": ["_all"]
+   }
+}}'
+
+
+Or
+
+curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
+  "fields": ["Title"],
+  "query": {
+    "query_string": {
+      "query": "growth"
+    }
+  }

@@ -1,0 +1,12 @@
+_all là một field bổ sung của elasticsearch mà tích hợp giá trị của tất cả các field khác.
+
+curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
+  "query": {
+    "match": {
+      "_all": "laptop"
+     }
+  }
+}'
+Tìm các documents mà có một field có giá trị match với keyword 
+có thể thêm attributes 
+
