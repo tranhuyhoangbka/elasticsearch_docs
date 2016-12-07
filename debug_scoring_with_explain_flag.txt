@@ -1,0 +1,6 @@
+curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
+  "explain": true,
+  "query": {
+    "match": {"name": "Lenovo"}
+  }
+}'

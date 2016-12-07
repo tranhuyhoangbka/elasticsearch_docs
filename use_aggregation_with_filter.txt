@@ -1,0 +1,23 @@
+curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
+"aggregations": {
+  "department": {
+    "terms": {
+      "field": "color"
+    }
+  }
+}
+"query": {
+  "filtered": {
+    "query": {
+      "match": {
+        "description": "dell"
+      }
+    }
+    "filter": {
+      "term": {
+        "productType": "laptop"
+      }
+    }
+   }
+}
+}'

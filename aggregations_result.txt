@@ -1,0 +1,44 @@
+- Format
+{
+"query" : { ....},
+  "aggregations" : {
+    "aggregationNameA" : {
+      "aggregationType" : {
+        <Aggregation type specific information> },
+       }
+    },
+    "aggregationNameB" : {
+      "aggregationType" : {
+        <Aggregation type specific information> },
+       }
+    },
+    { .... }
+}
+
+aggregationType: term, dành cho string field 
+
+Example: use aggregation with filter
+
+curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
+"aggregations": {   #keyword
+  "department": {   #aggregation name
+    "terms": {      # aggregation type
+      "field": "color"    #field to aggregation
+    }
+  }
+}
+"query": {
+  "filtered": {
+    "query": {
+      "match": {
+        "description": "dell"
+      }
+    }
+    "filter": {
+      "term": {
+        "productType": "Laptop"
+      }
+    }
+   }
+}
+}'

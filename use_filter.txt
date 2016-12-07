@@ -1,0 +1,70 @@
+1, filter with date range
+{
+  "query" :
+  { "filtered" :
+    {"query" :
+      { "text" : { "content" : "any keywords to match" }
+    },
+    "filter" :
+       { "numeric_range" :
+         { "date" :
+           { "lt" : "2011-02-01", "gte" : "2011-01-01"
+           }
+         }
+       }
+    }
+
+gte  Greater than or equal
+gt   Greater than
+lte  Less than or equal to
+lt   Less than
+
+2, filter with number range
+curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
+"query": {
+  "filtered": {
+    "filter": {
+      "range": {  #type filter
+        "age": {  #name field
+          "gte": 10,
+          "lte": 20
+        }
+      }
+    }
+ }'
+
+3, dùng term filter để matching cho string field giống với query match
+{
+"filtered": {
+  "filter": {
+    "term": {
+      "category": "books"
+    }
+  }
+}
+
+Example: use filter with aggregation
+curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
+"aggregations": {
+  "department": {
+    "terms": {
+      "field": "color"
+    }
+  }
+}
+"query": {
+  "filtered": {
+    "query": {
+      "match": {
+        "description": "dell"
+      }
+    }
+    "filter": {
+      "term": {
+        "productType": "Laptop"
+      }
+    }
+   }
+  }
+}'
+ 

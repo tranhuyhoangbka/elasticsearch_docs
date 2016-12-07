@@ -1,0 +1,47 @@
+*** mapping:
+curl -XPUT 'http://localhost:9200/restaurants/restaurant/_mapping' -d '{
+  "restaurant": {
+    "properties": {
+      "name": {"type": "string"},
+      "restaurantSuggest": {"type": "completion", "index_analyzer": "simple",
+      "search_analyzer": "simple", "payloads": true}
+    }
+  }
+}'
+
+*** create the documents
+curl -XPUT 'http://localhost:9200/restaurants/restaurant/royal-presidency-hotel' -d '{
+"name": "Royal Presidency Hotel",
+"restaurantSuggest": {
+  "input": ["Royal", "Presidency", "Hotel"],
+  "output": "Royal Presidency Hotel",
+  "payload": {"hotelID": "royal-presidency-hotel"}
+}}'
+
+curl -XPUT 'http://localhost:9200/restaurants/restaurant/pan-indian-royal-restaurant' -d '{
+"name": "Pan Indian Royal Restaurant",
+"restaurantSuggest": {
+  "input": ["Pan", "Indian", "Royal", "Restaurant"],
+  "output": "Pan Indian Royal Restaurant",
+  "payload": {"hotelID": "pan-indian-royal-restaurant"}
+}}'
+
+curl -XPUT 'http://localhost:9200/restaurants/restaurant/chinese-dragon-restaurant' -d '{
+"name": "Chinese Dragon restaurant",
+"restaurantSuggest": {
+  "input": ["Chinese", "Dragon", "restaurant"],
+  "output": "Chinese Dragon restaurant",
+  "payload": {"hotelID": "chinese-dragon-restaurant"}
+}
+}'
+
+*** Implement Suggest Query:
+curl -XPOST 'http://localhost:9200/restaurants/_suggest?pretty' -d '{
+  "restaurant-suggest": { #name suggest
+    "text": "roy",
+    "completion": {
+      "field": "restaurantSuggest"
+    }
+  }
+}'
+*** Chú ý rằng tốc độ search dùng autocomplete nhanh hơn nhiều so với dùng query thông thường. Vì chúng ta đã dùng cấu trúc lưu trữ FST 

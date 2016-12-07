@@ -1,0 +1,59 @@
+Để thay thế score được cho bởi câu query với score được cho bởi một field bất kỳ để các
+documents được sắp xếp theo field đó.
+Ví dụ sau dùng field function để đánh dấu date field như một cách tính score.
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "multi_match": {
+          "fields": ["title", "content"],
+          "query": "nausea"
+        }
+      },
+      "functions": [
+        {
+          "field_value_factor": {
+            "field": "date"
+          }
+        }
+      ],
+      "boost_mode": "replace"
+    }
+  }
+}
+
+Với query này các match documents được sắp xếp theo date
+
+**********
+Dùng script score function để đăng ký ngày của năm như một loại score, sau đó tính score chung bằng tổng của day score và PatientPastHealthIndex
+
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "multi_match": {
+          "fields": ["title", "content"],
+          "query": "nausea vomiting red eyes"
+        }
+      },
+      "functions": [
+        {
+          "script_score": { # use script to calculate day of year from date
+            "script": "doc['date'].value/(1000*60*60*24)"
+          }
+        },
+        {
+          "field_value_factor": {
+            "field": "PatientPastHealthIndex"
+          }
+        }
+      ],
+      "score_mode": "sum",
+      "boost_mode": "replace"
+    }
+  }
+}
+
+
+
+          
