@@ -1,0 +1,24 @@
+tình huống: giả sử lúc đầu chúng ta search tất cả laptop, và nhận được 1000 kết quả
+first page có 10 kết quả. Bây giờ, chúng ta thêm một số documents in background, thay thế
+của 1000 kết quả, bây  giờ chúng ta có 1200 kết quả. Khi mở next page chúng ta thấy một 
+số kết quả bị trùng với first page. Nguyên nhân là do việc thêm document đã làm thay đổi
+context search.
+Để giữ nguyên ngữ cảnh search trong một thời gian cụ thể, chúng ta sử dụng scroll api.
+
+curl -XGET 'http://localhost:9200/products/product/_search?scroll=1m' -d ' {
+"query": {
+  "match": {
+    "description": "rating"
+  }
+}}'
+1m = 1 minute
+mọi thời lời gọi với scroll api, sẽ reset lại expire time 
+Chú ý có thể thay XGET = XPOST, và có thể không dùng type trong url
+Scroll Api có thể được dùng với scan type nếu bạn không thú vị trong trình tự sắp xếp
+curl 'localhost:9200/products/product/_search?scroll=1m&search_type=scan' -d '
+{
+  "query": {
+    "match": {
+      "title": "Elasticsearch"
+    }
+}

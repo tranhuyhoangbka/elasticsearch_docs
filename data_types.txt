@@ -6,6 +6,7 @@ Long          64-bit integers
 Float         IEEE floats
 Double        Double precision floats
 Boolean       True or false
+nested		một mảng chứa nhiều object 
 Date          Date/Time stored as epoch
 geo_point     Latitude/Longitude
 Null          Null value

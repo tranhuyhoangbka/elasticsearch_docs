@@ -16,3 +16,28 @@ curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
       "query": "growth"
     }
   }
+
+******
+Nếu documents có dạng field chứa các object
+"name": "LCD TV",
+"tags": [
+{
+"tagName": "company",
+"value": "Sony"
+}
+,
+{
+"tagName": "competitor",
+"value": "Toshiba"
+}
+]
+
+Kiểu hash như trên của tags được gọi là kiểu nested datatype 
+Thì query có thể thực hiện theo chiều sâu của field như sau:
+{
+"query": {
+  "simple_query_string": {
+    "query": "tags.tagName:company AND tags.value:Toshiba"
+  }
+}
+}

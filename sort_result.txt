@@ -1,0 +1,66 @@
+"query": {
+...
+},
+"sort": [
+  {"priceArray": {"order": "asc", "mode": "avg"}}
+]
+}'
+
+Or
+{
+"query": {
+....
+},
+"sort": [
+  {"totalBuy": {"order": "desc"}}
+]
+}
+
+*** Chú ý có một loại sắp xếp khác được gọi là "_geo_distance" dùng để sắp xếp kết quả theo khoảng cách từ một điểm tới vị trí hiện tại.
+vd:
+{
+  "sort": [
+    {
+      "_geo_distance": {
+        "pin.location": [-70, 40],
+        "order": "asc",
+        "unit": "km"
+      }
+    }
+  ],
+  "query": {
+    "term": {"type": "restaurants"}
+  }
+}
+
+******
+Có thể sắp xếp dùng scripts khi mà các kỹ thuật sắp xếp mặc định trong elasticsearch không đủ
+cho yêu cầu của bạn:
+{
+"query": {
+.....
+},
+"sort": {
+  "_script": { #tu khoa
+    "script": "doc['field_name'].value * factor",
+    "type": "number",
+    "params": {
+      "factor": 1.1
+    },
+    "order": "asc"
+  }
+ }
+}
+
+****  Chú ý: khi dùng sort thì score được ignored. Nếu bạn muốn track score, có thể thêm
+option track_scores: true
+ví dụ
+{
+"query": {
+...
+},
+"sort": [
+...
+], 
+"track_scores": true
+}

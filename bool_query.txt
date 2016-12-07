@@ -1,0 +1,24 @@
+curl -XPOST 'http://localhost:9200/products/_search?pretty' -d ' {
+"bool": {
+  "must": [{
+    "term": {"productType": "Laptop"}
+  }],
+  "must_not": {
+    "range": {
+      "dateOfManufactoring":
+        {"from": 1990/01/01, "to": 2014/01/01}
+    }
+  },
+  "should": [
+    {
+      "term": {"color": "yellow"}
+    },
+    {
+       "term": {"description": "lenovo"}
+    }
+  ],
+  "minimum_should_match": 1,
+  "boost": 1.0
+}
+}'
+
