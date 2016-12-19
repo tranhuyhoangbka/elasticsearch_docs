@@ -12,7 +12,7 @@ Ví dụ sau dùng field function để đánh dấu date field như một cách
       },
       "functions": [
         {
-          "field_value_factor": {
+          "field_value_factor": {    # name of function type
             "field": "date"
           }
         }
@@ -54,6 +54,110 @@ Dùng script score function để đăng ký ngày của năm như một loại 
   }
 }
 
+********************************************
+random function được dùng trong function score để có một order random cho các matched documents
+(thực ra là nhân score thực tế với một số random)
+Mỗi lần thực hiện request chúng ta lại có một trình tự documents khác nhau
+
+"query": {
+  "function_score": {
+    "query": {
+      "multi_match": {
+         "fields": ["title", "content"],
+         "query": "nausea vomiting red eyes"
+       }
+    },
+    "functions": [{"random_score": {}}],
+    "boost_mode": "multiply"
+  }
+}
+
+***********************************
+decay function (linear function) được dùng với location lat long để tìm các documents có location gần với original place, và sắp xếp chúng theo khoảng cách đó 
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "multi_match": {
+          "fields": ["title", "content"],
+          "query": "nausea vomiting red eyes"
+        }
+      },
+      "functions": [
+        {
+          "linear": {
+            "location": {
+              "scale": "1km",
+              "origin": {
+                "lat": "2.2212",
+                "lon": "2.312"
+              }
+            }
+          }
+        }
+      ],
+      "boost_mode": "replace"
+    }
+  }
+}
+
+*****************
+decay function with offset options
+{
+  "query": {
+    "function_score": { 
+      "query": {
+        "multi_match": {
+          "fields": ["title", "content"],
+          "query": "nausea vomiting red eyes"
+        }
+      },
+      "functions": [
+        {
+          "linear": {
+            "location": {
+              "scale": "1km",
+              "offset": "10km",
+              "origin": {
+                "lat": "2.2212",
+                "lon": "2.312"
+              }
+            }
+          }
+        },
+        {
+          "gauss": {
+            "LocationPastHealthIndex": {
+              "origin": 0,
+              "scale": 1
+            }
+          }
+        }
+      ],
+      "boost_mode": "replace"
+    }
+  }
+}          
+
+***************88
+Dùng một công thức để tính điểm
 
 
-          
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "multi_match": {
+          "fields": ["title", "content"],
+          "query": "nausea vomiting red eyes"
+        }
+      },
+      "functions": [{
+        "script_score": {
+          "script": "doc['PatientPastHealthIndex'].value + 10/doc['LocationPastHealthIndex'].value"
+        }
+      }],
+       "boost_mode": "replace"
+    }
+  }
+}

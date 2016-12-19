@@ -1,0 +1,26 @@
+loại query này gán một tập query mà có boost values được cho tới position boost, 
+và tập khác với negative boost.
+
+{
+  "query": {
+    "boosting": {
+      "positive": {
+        "multi_match": {
+          "fields": ["title", "content"],
+          "query": "nausea fever"
+         }
+       },
+       "negative": {
+         "multi_match": {
+           "fields": ["title", "content"],
+           "query": "headache cough"
+         }
+       },
+       "negative_boost": 2
+     }
+   }
+}
+     
+Việc này sẽ làm điểm của các match documents mà chứa các từ headache cough bị giảm xuống nhiều hơn
+      
+      
