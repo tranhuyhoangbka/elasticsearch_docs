@@ -1,0 +1,93 @@
+"type": "geo_point" để định nghĩa kiểu dữ liệu geo 
+1, create index with setting and analyzer
+
+curl -XPUT 'http://localhost:9200/restaurants' -d '{
+"index": {
+  "number_of_shards": 1,
+  "number_of_replicas": 1
+},
+"analysis": {
+  "analyzer": {
+    "flat": {
+      "type": "custom",
+      "tokenizer": "keyword",
+      "filter": "lowercase"
+    }
+  }
+}
+}'
+
+curl -XPUT 'http://localhost:9200/restaurants/restaurant/_mapping' -d '{
+"restaurant": {
+  "properties": {
+    "name": {"type": "string"},
+    "location": {"type": "geo_point", "accuracy": "1km"}
+  }
+}
+}'
+
+2, Tìm các restaurants gần nhất với địa chỉ hiện tại (1.234 , 2.132)
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+  "query": {
+    "function_score": {
+      "functions": [
+	{
+          "gauss": {
+            "location": {
+              "scale": "1km",
+              "origin": [1.231, 1.012]
+            }
+          }
+        }
+      ]
+    }
+  }
+}'
+Ở đây chúng ta yêu cầu elasticsearch cho điểm cao các restaurants mà gần current location. (điểm cao hơn là quan trọng hơn)
+
+3, Tìm các restaurants nằm trong phạm vi 100km tính từ current location
+Để giải quyết bài toán này ta sử dụng geo distance filter 
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"query": {
+"filterd": {
+  "filter": {
+    "geo_distance": {
+      "distance": "100km",
+      "location": {
+        "lat": 1.232,
+        "lon": 1.112
+      }
+    }
+  }
+}
+}
+}'
+
+4, Tìm kiếm các restaurants mà nằm trong phạm vi một thành phố, phạm vi đó được xác định bởi một hình chữ nhật
+với top-left point và bottom_right point 
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"query": {
+  "filtered": {
+    "query": {
+      "match_all": {}
+    },
+    "filter": {
+      "geo_bounding_box": {
+        "location": {
+          "top_left": {
+            "lat": 2,
+            "lon": 0
+          },
+          "bottom_right": {
+            "lat": 0,
+            "lon": 2
+          }
+        }
+      }
+    }
+  }
+}
+}'
+

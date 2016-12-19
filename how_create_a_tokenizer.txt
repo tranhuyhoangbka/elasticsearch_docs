@@ -236,4 +236,112 @@ curl -XPOST 'http://localhost:9200/news/_analyze?analyzer=synonymAnalyzer&pretty
   } ]
 }
 
-      
+============================
+Search with words with simalar sounds
+Kết quả search forgot và forghot phải giống hệt nhau.
+Để làm được điều đó, chúng ta có thể dùng "phonetic" analyzer.
+1, curl "localhost:9200/_nodes/settings?pretty=true" to get home path of elasticsearch
+and cd to that folder: cd /usr/share/elasticsearch
+
+2, install it:  sudo bin/plugin install elasticsearch/elasticsearch-analysis-phonetic/2.5.0
+Sau đó cần tạo analyzer dùng nó:
+curl -XPUT 'http://localhost:9200/news' -d '{
+"index": {
+  "number_of_shards": 1,
+  "number_of_replicas": 1
+},
+"analysis": {
+  "filter": {
+    "my_metaphone": {   #name filter
+      "type": "phonetic",  #filter type
+      "encoder": "metaphone",   #encoder, it has many encoder
+      "replace": false
+    }
+  },
+  "analyzer": {
+    "metaphone": {
+      "type": "custom",
+      "tokenizer": "standard",
+      "filter": "my_metaphone"
+    }
+  }
+}
+}'
+
+* Test with analyze API
+curl -XPOST 'http://localhost:9200/news/_analyze?analyzer=metaphone&pretty' -d 'aamerika'
+
+=>
+{
+"tokens" : [ {
+"token" : "AMRK",
+"start_offset" : 0,
+"end_offset" : 8,
+"type" : "<ALPHANUM>",
+"position" : 1
+}, {
+"token" : "aamerika",
+"start_offset" : 0,
+"end_offset" : 8,
+"type" : "<ALPHANUM>",
+"position" : 1
+} ]
+}
+
+Khi đó aamerika, 'amerika', 'america' cùng được ánh xạ tới cùng token AMRK
+
+=============================================================
+Substring matching: 
+
+khi search cho từ "titani" nó nên match với documents có chứa từ "titanium"
+Để làm được điều này ta dùng EdgeNGram-based analyzer
+Ví dụ tạo EdgeNGram analyzer
+curl -XPUT 'http://localhost:9200/news' -d '{
+"index": {
+  "number_of_shards": 1,
+  "number_of_replicas": 1
+},
+"analysis": {
+  "filter": {
+    "ngram": {
+      "type": "edgeNgram",
+      "min_gram": 1,
+      "max_gram": 50
+    }
+  },
+  "analyzer": {
+    "NGramAnalyzer": {
+      "type": "custom",
+      "tokenizer": "standard",
+      "filter": "ngram"
+    }
+  }
+}
+}'
+NGram filter sẽ tạo substrings cho tất cả các tokens từ 1 char đến 50 chars
+
+Testing: 
+
+curl -XPOST 'http://localhost:9200/news/_analyze?analyzer=NGramAnalyzer&pretty' -d 'aamerika'
+
+=>
+{
+"tokens" : [ {
+"token" : "a",
+"start_offset" : 0,
+"end_offset" : 8,
+"type" : "word",
+"position" : 1
+}, {
+"token" : "aa",
+"start_offset" : 0,
+"end_offset" : 8,
+"type" : "word",
+"position" : 1
+}, {
+"token" : "aam",
+"start_offset" : 0,
+"end_offset" : 8,
+...........
+
+
