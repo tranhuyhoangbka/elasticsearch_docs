@@ -7,3 +7,83 @@ quote> "DOP": {"type": "date"}
 quote> }
 quote> }
 quote> }'
+
+----------------
+a document of planeticketing index is formated same as:
+{
+"departure" : {
+"time" : "2014-10-10 01:01:01",
+"airport" : "Kochi",
+},
+"arrival" : {
+"time" : "2014-10-10 01:01:01",
+"airport" : "Bangalore",
+}.
+"passengerDetails" : {
+"name" : "Damodar Das",
+"purposeOfVisit" : "WorkRelated",
+"sex" : "Male"
+},
+"ticketType" : "Business",
+"timeOfBooking" : "2014-09-09 09:09:01"
+}
+
+Configurate its mapping type same as follow list:
+-  create a new index
+
+curl -XPUT 'http://localhost:9200/planeticketing' -d '{
+"index": {
+  "number_of_shards": 2,
+  "number_of_replicas": 1
+}'
+
+- mapping type
+
+curl -XPUT 'http://localhost:9200/planeticketing/ticket/_mapping' -d '{
+  "ticket": {
+    "properties": {
+      "ticketType": {"type": "string", "index": "not_analyzed"},
+      "timeOfBooking": {"type": "date", "format": "YYYY-MM-dd HH:mm:ss"},
+      "departure": {
+        properties: {
+          "airport": {"type": "string"},
+          "time": {"type": "date", "format" "YYYY-MM-dd HH:mm:ss"}
+        }
+      },
+      "arrival": {
+        "properties": {
+          "airport": {"type": "string"},
+          "time": {"type": "date", "format": "YYYY-MM-dd HH:mm:ss"}
+        }
+      },
+      "passengerDetails": {
+        "properties": {
+          "name": {"type": "string"},
+          "purposeOfVisit": {"type": "string", "index": "not_analyzed"},
+          "sex": {"type": "string", "index": "not_analyzed"}
+        }
+      }
+    }
+  }
+}'
+việc thêm attributes "index": "not_analyzed" chắc rằng search cho chính xác cho tất cả các từ có trong fields.
+các field này không được tokenized hay lowercased khi index 
+ví dụ: purposeOfVisit: "have a japan jouney"
+một query để tìm thấy document chứa field này buộc term cuar nó phải chính xác là : "have a japan jouney"
+curl -XPOST 'http://localhost:9200/planeticketing/ticket/3' -d '{
+"ticketType": "full",
+"timeOfBooking": "2016-12-09 14:00:00",
+"departure": {
+  "airport": "noibai airport",
+  "time": "2016-12-17 22:00:00"
+},
+"arrival": {
+"airport": "NewYork",
+"time": "2016-12-18 10:00:00"
+},
+"passengerDetails": {
+"name": "Luong Minh Son",
+"purposeOfVisit": "Make a economic constract",
+"sex": "male"
+}
+}'

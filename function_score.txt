@@ -73,7 +73,7 @@ Mỗi lần thực hiện request chúng ta lại có một trình tự document
 }
 
 ***********************************
-decay function (linear function) được dùng với location lat long để tìm các documents có location gần với original place, và sắp xếp chúng theo khoảng cách đó 
+decay function (linear function) được dùng với location lat long để tìm các documents có location gần với original place, và sắp xếp chúng theo khoảng cách đó
 {
   "query": {
     "function_score": {
@@ -105,7 +105,7 @@ decay function (linear function) được dùng với location lat long để t�
 decay function with offset options
 {
   "query": {
-    "function_score": { 
+    "function_score": {
       "query": {
         "multi_match": {
           "fields": ["title", "content"],
@@ -137,12 +137,14 @@ decay function with offset options
       "boost_mode": "replace"
     }
   }
-}          
+}
 
 ***************88
 Dùng một công thức để tính điểm
 
 
+*****************
+Dùng function score để tính toán điểm theo công thức
 {
   "query": {
     "function_score": {
@@ -161,3 +163,4 @@ Dùng một công thức để tính điểm
     }
   }
 }
+score và order của các matched documents hoàn toàn được dựa trên công thức được cho

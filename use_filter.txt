@@ -67,4 +67,162 @@ curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
    }
   }
 }'
- 
+
+-----------------------
+filter with nested type
+document:
+{
+"_index": "authors",
+"_type": "nested_author",
+"_id": "2",
+"_version": 1,
+"_score": 1,
+"_source": {
+"name": "Alastair Reynolds",
+"books": [
+{
+"name": "Revelation space",
+"genre": "scifi",
+"publisher": "penguin"
+}
+]
+}
+}
+
+search documents with books.publisher: "penguin" and books.genre: "scifi"
+curl -XPOST 'http://localhost:9200/authors/nested_author/_search?pretty' -d '{
+"query": {
+"filtered": {
+  "query": {"match_all": {}},
+  "filter": {
+    "nested": {   #filter type : nested
+      "path": "books"
+      "query": {
+        "filtered": {
+          "query": {"match_all": {}},
+          "filter": {
+            "and": [
+              {"term": {"books.publisher": "penguin"}},
+              {"term": {"books.genre": "scifi"}}
+            ]
+          }
+         }
+        }
+      }
+    }
+   }
+}}}'
+
+----------------------------
+
+has_child query/ has_child filter: dùng để tìm các parent documents mà có các child documents matched query
+có bao nhiêu question  mà có child document có rating > 50
+
+
+curl -XPOST 'http://localhost:9200/posts/post/_search?pretty' -d '{
+"query": {
+  "filtered": {
+    "query": {
+      "text": {"question": "elasticsearch query to return all records"}
+    },
+    "filter": {
+      "has_child": {
+        "type": "rating",
+        "query": {
+          "filtered": {
+            "query": {"match_all": {}},
+            "filter": {
+              "and": [
+                {"term": {"accepted": "yes"}},
+                {"range": {"rating": {"gt": 50}}}
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}'
+
+------------------------------------
+has_parent filter/ has_parent query
+Tìm các child documents mà có parent thỏa mãn điều kiện nào đó
+
+curl -XPOST 'http://localhost:9200/posts/rating/_search?pretty' -d '{
+"query": {
+"filtered": {
+  "query": {"match_all": {}},
+  "filter": {
+    "and": [
+      {"term": {"accepted": "yes"}},
+      {
+        "has_parent": {
+          "type": "post",
+          "query": {
+            "term": {"question": "Queries vs. Filters"}
+          }
+        }
+      }
+    ]
+  }
+ }
+},
+"sort": [
+  {"rating": {"order": "desc"}}
+]
+}'
+
+----------------
+tìm các documents với score của nó là tổng score của tất cả answer của nó
+curl -XPOST 'http://localhost:9200/posts/post/_search?pretty' -d '{
+"query": {
+"has_child": {
+  "type": "rating",
+  "query": {
+    "function_score": {
+      "functions": [
+        {
+          "field_value_factor": {"field": "rating"}
+        }
+      ]
+    }
+   },
+   "score_mode": "sum"
+  }
+ }
+}'
+-------------------
+get tất cả parrent documents mà có ít nhất 4 child documents (tìm các question có ít nhất 4 answers) dùng min_children (có thể dùng max_children)
+curl -XPOST 'http://localhost:9200/posts/post/_search?pretty' -d '{
+"query": {
+  "has_child": {
+    "type": "rating",
+    "min_children": 4,
+    "query": {"match_all": {}}
+  }
+}
+}'
+-------------------------------
+Tìm top questions dựa trên số lượng voted và accepted answers của nó dùng inner_hits
+
+curl -XPOST 'http://localhost:9200/posts/post/_search?pretty' -d '{
+"query": {
+"has_child": {
+  "type": "rating",
+  "query": {
+    "function_score": {
+      "functions": [
+        {
+          "field_value_factor": {"field": "rating"}
+        }
+      ]
+    }
+  },
+  "score_mode": "sum",
+  "inner_hits": {}
+  }
+}
+}'
+
+nó sẽ trả về parent document và các matched child documents của nó
+các parent documents được sắp xếp theo score, và các inner child docs của nó cũng được sắp xếp dựa trên score

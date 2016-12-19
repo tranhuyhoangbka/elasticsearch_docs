@@ -1,5 +1,5 @@
 1, a match query
-search trên field _all của document 
+search trên field _all của document
 _all là một field bổ sung của elasticsearch mà tích hợp giá trị của tất cả các field khác.
 
 curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
@@ -9,12 +9,13 @@ curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
      }
   }
 }'
-Tìm các documents mà có một field có giá trị match với keyword 
+có thể thay _all là một field name bất kỳ của document
+Tìm các documents mà có một field có giá trị match với keyword
 có thể thêm option include_in_all: false  tới các fields mà không muốn tích hợp vào _all field của document
 
 ===================================
 2, multi_field match query
-để search trên nhiều fields và có thể xét độ ưu tiên cho field xác định 
+để search trên nhiều fields và có thể xét độ ưu tiên cho field xác định
 curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
 "query": {
 "multi_match": {
@@ -22,3 +23,12 @@ curl -XPOST 'http://localhost:9200/new_wiki/_search?pretty' -d '{
 "fields": ["name^2", "description"],
 }}}'
 nâng tầm quan trọng của field name lên 2 lần
+
+curl -XPOST 'http://localhost:9200/news/_search?pretty' -d '{
+"query": {
+  "multi_match": {
+    "query": "dogs",
+    "fields": ["title^2", "content"]
+  }
+}
+}'

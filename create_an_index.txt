@@ -68,10 +68,38 @@ curl -X PUT "http://localhost:9200/products/product/_mapping" -d ' {
  }
 }'
 
-Chú ý: 
+Chú ý:
 - "index": "not_analyzed": yêu cầu elasticsearch không analyzed field này, nó không có khả năng
 search theo kiểu token. Nghĩa là nếu product type là Large Laptop, search query là Laptop thì sẽ
 không cho kết quả phù hợp.
-- "index": "no": yêu cầu elasticsearch không index field này vì thế field này không có khả năng search 
+- "index": "no": yêu cầu elasticsearch không index field này vì thế field này không có khả năng search
 chỉ có khả năng lấy ra.
 
+******
+(nested datatype)
+Thêm một document tới index
+
+curl -XPOST 'http://localhost:9200/products/product/LCD_TV' -d '{
+"name": "LCD TV",
+"tags": [{"tagName": "company", "value": "Sonay"}, {"tagName": "competitor", "value": "Toshiba"}]
+}'
+*****
+parent child type
+how mapping a type is parent another one in a index
+curl -XPOST 'http://localhost:9200/posts/rating/_mapping' -d '{
+"rating": {
+  "_parent": {"type": "post"}
+}
+
+curl -XPOST localhost:9200/posts/post/1 -d '{
+"question":" elasticsearch query to return all records"
+}'
+
+and after that add child document
+curl -XPOST 'http://localhost:9200/posts/rating/1?parent=1' -d '{
+"accepted": "yes",
+"rating": 72,
+"answer": "http://localhost:9200/foo/_search?pretty=true&q=*:*"
+}'
+
+mapping the type post as the parent of type rating

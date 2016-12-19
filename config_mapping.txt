@@ -1,0 +1,35 @@
+curl -XPUT 'http://localhost:9200/authors/nested_author/_mapping' -d '{
+  "nested_author": {
+    "properties": {
+      "name": {"type": "string"},
+      "books": {"type": "nested"}
+    }
+  }
+}'
+
+curl -XPOST localhost:9200/authors/author/1 -d'{
+"name": "Multi G. Enre",
+"books": [
+{
+"name": "Guns and lasers",
+"genre": "scifi",
+"publisher": "orbit"
+},
+{
+"name": "Dead in the night",
+"genre": "thriller",
+"publisher": "penguin"
+}
+]
+}'
+----------------------
+
+
+*****
+parent child type
+how mapping a type is parent another one in a index
+curl -XPOST 'http://localhost:9200/posts/rating/_mapping' -d '{
+"rating": {
+  "_parent": {"type": "post"}
+}
+mapping the type post as the parent of type rating

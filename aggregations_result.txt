@@ -15,7 +15,11 @@
     { .... }
 }
 
-aggregationType: term, dành cho string field 
+aggregationType: term, dành cho string field
+
+có thể thay thế từ khóa aggregations == aggs
+aggregationType: term, dành cho string field, date_histogram: dùng cho một thành phần thời gian vd: day, month, hour,min...
+geo:...
 
 Example: use aggregation with filter
 
@@ -41,4 +45,242 @@ curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{
     }
    }
 }
+}'
+
+---------
+Example
+document format
+curl -XPOST 'http://localhost:9200/planeticketing/ticket/3' -d '{
+"ticketType": "full",
+"timeOfBooking": "2016-12-09 14:00:00",
+"departure": {
+  "airport": "noibai airport",
+  "time": "2016-12-17 22:00:00"
+},
+"arrival": {
+"airport": "NewYork",
+"time": "2016-12-18 10:00:00"
+},
+"passengerDetails": {
+"name": "Luong Minh Son",
+"purposeOfVisit": "Make a economic constract",
+"sex": "male"
+}
+}'
+----------
+aggregation
+curl -XPOST 'http://localhost:9200/planeticketing/_search?pretty' -d '{
+  "query": {
+    "range": {
+      "timeOfBooking": {
+        "gte": "2016-09-01 00:00:00",
+        "lt": "2016-12-30 00:00:00"
+      }
+    }
+  },
+  "aggregations": {
+    "maleToFemale": {
+      "terms": {
+        "field": "passengerDetails.sex"
+      }
+    }
+  }
+}'
+chú ý rằng aggregations nằm ở dưới query có nghĩa là nó nằm trong scope của query
+có nghĩa rằng aggretion xảy ra chỉ trên các matched documents
+----------------------------------------------
+
+Aggregation chỉ trả về kết quả thống kê tổ hợp không trả về tập hits
+
+curl -XPOST 'http://localhost:9200/news/_search?pretty&search_type=count' -d '{
+  "aggs": {
+    "authors": {
+      "terms": {
+        "field": "author"
+      }
+    }
+  }
+}'
+
+----------------------------------------------
+có thể aggregations theo các đơn vị thời gian cụ thể như giờ, phút, secon, tháng, day, 1.5 days, 3.5 months ...
+dùng aggregation type là date_histogram
+curl -XPOST 'http://localhost:9200/planeticketing/_search?pretty' -d '{
+  "query": {
+    "range": {
+      "timeOfBooking": {
+        "gte": "2016-09-01 00:00:00",
+        "lt": "2016-12-30 00:00:00"
+      }
+    }
+  },
+  "aggregations": {
+    "ticketTrends": {
+      "date_histogram": {
+        "field": "timeOfBooking",
+        "interval": "day"
+      }
+    }
+  }
+}'
+
+aggregation theo day. Thống kê số lượng tickets theo day
+-----------------
+nested aggregation có thể nồng một aggregation vào trong một aggregation khác
+curl -XPOST 'http://localhost:9200/planeticketing/_search?pretty' -d '{
+"query": {
+  "range": {
+    "timeOfBooking": {
+      "gte": "2016-09-01 00:00:00",
+      "lt": "2016-12-30 00:00:00"
+    }
+  }
+},
+"aggregations": {
+"departure": {
+  "terms": {
+    "field": "departure.airport"
+  },
+  "aggregations": {
+    "arrival": {
+      "terms": {
+        "field": "arrival.airport"
+      }
+    }
+  }
+}
+}
+}'
+
+=>
+mỗi sân bay khởi hành có bao nhiều chuyến bay, và điểm đến từ các sân bay khởi hành có bao nhiêu chuyến bay
+"aggregations" : {
+"departure" : {
+"buckets" : [ {
+"key" : "kochi",
+"doc_count" : 3,
+"arrival" : {
+"buckets" : [ {
+"key" : "delhi",
+"doc_count" : 2
+}, {
+"key" : "bangalore",
+"doc_count" : 1
+} ]
+}
+}, {
+"key" : "banglore",
+"doc_count" : 1,
+"arrival" : {
+"buckets" : [ {
+"key" : "delhi",
+"doc_count" : 1
+} ]
+}
+} ]
+}
+}
+}
+----------------
+Một ví dụ khác của nested aggregations
+người quản lý muốn thống kê số ticket theo ngày và thống kê ra số lượng ticket của từng loại ticket được đặt trong ngày đó. Dùng date_histogram và term aggregation type để giải quyết bài toán này
+
+curl -XPOST 'http://localhost:9200/planticketing/_search?pretty' -d '{
+"query": {
+  "range": {
+    "timeOfBooking": {
+      "gte": "2016-09-01 00:00:00",
+      "lt": "2016-12-30 00:00:00"
+    }
+  }
+},
+"aggregations": {
+  "ticketTrends": {
+    "date_histogram": {
+      "field": "timeOfBooking",
+      "interval": "day"
+    },
+    "aggregations": {
+      "ticketType": {
+        "terms": {
+          "field": "ticketType"
+        }
+      }
+    }
+  }
+}
+}'
+
+=>
+"aggregations" : {
+"ticketTrends" : {
+"buckets" : [ {
+"key_as_string" : "2014-09-09 00:00:00",
+"key" : 1410220800000,
+"doc_count" : 3,
+"ticketType" : {
+"buckets" : [ {
+"key" : "Ecnomical",
+"doc_count" : 2
+}, {
+"key" : "Business",
+"doc_count" : 1
+} ]
+}
+}
+-----------------------
+use aggregation with script: dùng aggregation cho khoảng thời gian máy bay bay
+
+{
+"query": {
+  "range": {
+     "timeOfBooking": {
+       "gte": "2014-09-01 00:00:00",
+       "lt": "2014-10-01 00:00:00"
+     }
+  }
+},
+"aggregations": {
+  "ticketTrends": {
+    "terms": {
+      "script": "def timeDiff = doc['arrival.time'].value - doc['departure.time'].value ;Math.round( timeDiff/(1000 * 100 * 60));end","lang": "groovy"
+}
+}
+}
+}
+------------------
+Như đã nói ở trên thì chúng ta có thể nested nhiều level aggregations
+Ví dụ chúng ta có một bài toán: người quản lý muốn thấy sự tương quan giữa mục đích của chuyến đi, loại ticket, giới tính của khách hàng
+chúng ta sẽ giải quyết bằng cách dùng nested aggregations 3 levels. Level 1: mục đích của chuyến đi, loại ticket, giới tính của khách hàng.
+
+curl -XPOST 'http://localhost:9200/planeticketing/_search?pretty' -d '{
+"query": {
+  "range": {
+    "timeOfBooking": {
+      "gte": "2016-09-01 00:00:00",
+      "lt": "2016-12-30 00:00:00"
+    }
+  }
+},
+"aggregations": {
+  "purposeOfVisit": {
+    "terms": {
+      "field": "passengerDetails.purposeOfVisit"
+    },
+    "aggregations": {
+      "ticketType": {
+        "terms": {
+          "field": "ticketType"
+        },
+        "aggregations": {
+          "sex": {
+            "terms": {
+              "field": "passengerDetails.sex"
+            }
+          }
+        }
+      }
+    }
+   }
+  }
 }'

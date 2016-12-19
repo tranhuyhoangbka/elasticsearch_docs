@@ -1,3 +1,5 @@
+Chú ý: mặc định, khi analyzer được accept tới một field cụ thể thì cũng được dùng cả khi index và search. Nghĩa là khi accept
+lowercase analyzer tới một field thì khi index và search với field này thì sẽ đều là case insensitive 
 cach 1: setting in configuration file
 in /etc/elasticsearch/elasticsearch.yml file add lines
 index :
@@ -41,4 +43,197 @@ curl -X PUT "http://localhost:9200/wiki" -d '{
 }
 }
 }'
+======================================
+Ví dụ 2:
+Tạo custom analyzer mà khi index hay khi search đều là case insensitive. Có nghĩa là khi index
+["STUDENT", "sTudent"] => "student"
+khi search "Student" cũng giống như search "student"
+** nếu như index chưa tồn tại
+curl -XPUT 'http://localhost:9200/news' -d '{
+"analysis": {
+"analyzer": {
+"lowercase": {
+"type": "custom",
+"tokenizer": "standard",
+"filter": ["lowercase"]
+}
+}
+}
+}'
 
+** Nếu như index đã tồn tại thì làm như sau: https://gist.github.com/nicolashery/6317643
+=====================
+
+** Search with email or url
+Để email hay url không bị tokenize khi index cũng như khi search. ta cần cấu hình lại tokenizer cho analyzer tới "uax_url_email"
+sau đó setting lại analyzer cho field với mapping config
+ví dụ
+curl -XPUT 'http://localhost:9200/news' -d '{
+"analysis": {
+  "analyzer": {
+    "urlAnalyzer": {
+      "type": "custom",
+      "tokenizer": "uax_url_email",
+      "filter": ["lowercase"],
+      "char_filter": ["html_strip"]
+    }
+  }
+}
+}'
+
+curl -XPUT 'http://localhost:9200/news/public/_mapping' -d '{
+"public": {
+"properties": {
+"content": {"type": "string", "analyzer": "urlAnalyzer"}
+}
+}
+}'
+
+**Hoặc có thể không analyzed email, url nữa
+curl -XPUT 'http://localhost:9200/news/public/_mapping' -d '{
+"public": {
+"properties": {
+"email": {"type": "string", "index": "not_analyzed"},
+"author": {"type": "string", "index": "not_analyzed"}
+}
+}
+}'
+
+khi đó email, author sẽ không bị analysis mỗi khi index hoặc search nữa.
+ví dụ khi aggregations với author cho kết quả như sau:
+"buckets" : [ {
+"key" : "Anjali Shankar",
+"doc_count" : 1
+},
+....
+
+nhưng việc dùng not_analyzed có một nhược điểm là kết quả search sẽ có sự khác nhau khi search term thay đổi từ chữ thường tới chữ hoa và ngược lại, hoặc hai đầu của field có những khoảng trắng.
+
+Để khắc phục tình trạng này chúng ta dùng keyword tokenizer. 
+keyword tokenizer cho phép duy trì giá trị ban đầu của field cho tới tận khi tokens filter xảy ra. Nó hơn not_analyzed chỗ là nó có thể áp dụng filter cho token cho field.
+
+curl -XPUT 'http://localhost:9200/news' -d '{
+"analysis": {
+  "analyzer": {
+    "flat": {
+      "type": "custom",
+      "tokenizer": "keyword",
+      "filter": ["lowercase"]
+    }
+  }
+}
+}'
+
+curl -XPUT 'http://localhost:9200/news/public/_mapping' -d '{
+"public": {
+  "properties": {
+    "author": {"type": "string", "analyzer": "flat"}
+  }
+}
+}'
+
+sau đó index một số documents
+và thực hiện search với aggs theo author và được kết quả tương tự như cách trên
+"aggregations" : {
+    "authors" : {
+      "buckets" : [ {
+        "key" : "jame morison",
+        "doc_count" : 2
+      },....
+
+
+-------------------------------------------------------------------
+STEMMING
+stemming là quá trình chúng ta convert english word tới dạng cơ bản của nó. Ví dụ:
+[ running , ran ] => run
+[ laughing , laugh , laughed ] => laugh
+
+có nghĩa là khi chúng ta tìm kiếm với ran, running thì kết quả cũng giống như khi chúng ta tìm kiếm với run
+Có thể thực hiện theo hai cách:
+-  Cách 1: dùng hướng tiếp cận algorithmic: dùng giải thuật để convert các từ về base form của nó
+-  Cách 2: hướng tiếp cận dictionary: dùng phương pháp tìm kiếm để map từ tới dạng cơ bản của nó thông qua một thư viện từ điển
+
+** algorithmic approach:
+Use snowball algorithm
+snowball algorithm là giải thuật thông minh để tìm base form của words. Nó sẽ remove các trailing chars như: ing, ed, er, es...
+
+curl -XPUT 'http://localhost:9200/news' -d '{
+"analysis": {
+  "analyzer": {
+    "stemmerAnalyzer": {
+      "type": "custom",
+      "tokenizer": "standard",
+      "filter": ["lowercase", "snowball"]
+    }
+  }
+}
+}'
+
+************** Use analyzer API to check index analyzer action
+ex:
+curl -XPOST 'http://localhost:9200/news/_analyze?analyzer=stemmerAnalyzer&pretty' -d 'running run'
+result:
+{
+  "tokens" : [ {
+    "token" : "run",
+    "start_offset" : 0,
+    "end_offset" : 7,
+    "type" : "<ALPHANUM>",
+    "position" : 1
+  }, {
+    "token" : "run",
+    "start_offset" : 8,
+    "end_offset" : 11,
+    "type" : "<ALPHANUM>",
+    "position" : 2
+  } ]
+}
+Nhưng hướng tiếp cận này không phải đúng 100%. ví dụ trường hợp của [insider, inside] => insid
+Để khắc phục nhược điểm này, chúng ta dùng hướng tiếp cận dictionary với "hunspell" filter.
+với hunspell-dictionary-based stemming độ chính xác sẽ là 100%, nhưng sẽ ảnh hưởng tới hiệu năng search 
+
+------------------------------------------------------
+**Search với từ đồng nghĩa: synonym search
+đôi khi chúng ta muốn có khả năng search với các từ đồng nghĩa. Có nghĩa là khi search với từ large cũng cho kết quả giống với khi search với từ big 
+
+curl -XPUT 'http://localhost:9200/news' -d '{
+"analysis": {
+  "filter": {
+    "synonym": {
+      "type": "synonym",
+      "synonyms": [
+        "big, large",
+        "round, circle"
+      ]
+    }
+  },
+  "analyzer": {
+    "synonymAnalyzer": {
+      "type": "custom",
+      "tokenizer": "standard",
+      "filter": ["lowercase", "synonym"]
+    }
+  }
+}
+}'
+
+test:
+curl -XPOST 'http://localhost:9200/news/_analyze?analyzer=synonymAnalyzer&pretty' -d 'big'
+=>
+{
+  "tokens" : [ {
+    "token" : "big",
+    "start_offset" : 0,
+    "end_offset" : 3,
+    "type" : "SYNONYM",
+    "position" : 1
+  }, {
+    "token" : "large",
+    "start_offset" : 0,
+    "end_offset" : 3,
+    "type" : "SYNONYM",
+    "position" : 1
+  } ]
+}
+
+      
