@@ -41,3 +41,30 @@ Thì query có thể thực hiện theo chiều sâu của field như sau:
   }
 }
 }
+
+===================
+search tích hợp nhiều điều kiện strong string query
+
+curl -XPOST 'http://localhost:9200/news/_search?pretty' -d '{
+"query": {
+  "query_string": {
+    "query": "title:india AND content:occupation AND date:[1900-01-01 TO 1992-01-01] AND author:'shiv shankar'"
+  }
+}
+}'
+** Trong field:value nếu field không được xác định thì _all được chọn 
+** number/date range search
+•	 Age above 10: "age:[10 TO *]
+•	 Age between 10 and 15: " age:[10 TO 15]
+•	 Age excluding 10 and above 10 and below 20: "age:[10 TO 20]
+•	 Date between 1990 and 1992: "date:[1990 TO 1992]
+** The phrase search: khi muốn search một đọan text trong field đoạn này chứa nhiều words liên tiếp.
+thực hiện đánh dấu đoạn text để search bằng cách đặt nó trong double quotes
+Vd: Content:"occupational hazards"
+** wildcard search
+vd: content:occup*
+** regexp search
+content: /indi.*/
+** Boolean operators
+Query = "india OR asia AND NOT china"
+
