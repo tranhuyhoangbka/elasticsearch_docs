@@ -1,4 +1,5 @@
 curl -XPOST 'http://localhost:9200/products/_search?pretty' -d ' {
+"query": {
 "bool": {
   "must": [{
     "term": {"productType": "Laptop"}
@@ -20,5 +21,49 @@ curl -XPOST 'http://localhost:9200/products/_search?pretty' -d ' {
   "minimum_should_match": 1,
   "boost": 1.0
 }
+}
 }'
+--------------------------------
+ví dụ:
+giả sử cứ một ngày lại có một index mới dạng logstash-YYYY-MM-dd. Muốn search cho tất cả các documents mà được tạo cách đây
+không quá 3 ngày và có company name là cisco 
+POST /logstash-*/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+             "created_at": {"gt": "now-3d", "lt": "now"}
+          }
+        },
+        {
+          "term": {
+            "company": "cisco"
+          }
+        }
+      ]
+    }
+  }
+}
 
+Có thể xác định rõ ràng các index nào cần search như sau:
+POST /logstash-2015-03-05,logstash-2015-03-04,logstash-2015-03-03/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "created_at": {"gt": "now-3d", "lt": "now"}
+          }
+        },
+        {
+          "term": {
+            "company": "cisco"
+          }
+        }
+      ]
+    }
+  }
+}

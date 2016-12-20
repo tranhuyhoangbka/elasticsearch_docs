@@ -45,5 +45,181 @@ curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
 }'
 Ở đây chúng ta yêu cầu elasticsearch cho điểm cao các restaurants mà gần current location. (điểm cao hơn là quan trọng hơn)
 
-3, 
+3, Tìm các restaurants nằm trong phạm vi 100km tính từ current location
+Để giải quyết bài toán này ta sử dụng geo distance filter 
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"query": {
+"filterd": {
+  "filter": {
+    "geo_distance": {
+      "distance": "100km",
+      "location": {
+        "lat": 1.232,
+        "lon": 1.112
+      }
+    }
+  }
+}
+}
+}'
+
+4, Tìm kiếm các restaurants mà nằm trong phạm vi một thành phố, phạm vi đó được xác định bởi một hình chữ nhật
+với top-left point và bottom_right point 
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"query": {
+  "filtered": {
+    "query": {
+      "match_all": {}
+    },
+    "filter": {
+      "geo_bounding_box": {
+        "location": {
+          "top_left": {
+            "lat": 2,
+            "lon": 0
+          },
+          "bottom_right": {
+            "lat": 0,
+            "lon": 2
+          }
+        }
+      }
+    }
+  }
+}
+}'
+
+****************
+5, Tính khoảng cách giữa các restaurants tới current location
+Để giải quyết vấn đề này có thể dùng scripts
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+  "script_fields": {
+    "distance": {
+      "script": "doc['"'"'location'"'"'].arcDistanceInKm(1, 2)"
+    }
+  },
+  "fields": [
+    "name"
+  ],
+  "query": {
+    "match": {
+      "name": "Tamarind"
+    }
+  }
+}'
+=>
+
+"hits" : [ {
+      "_index" : "restaurants",
+      "_type" : "restaurant",
+      "_id" : "uzRnfWi8RBeR_qXFcy2eKA",
+      "_score" : 0.19178301,
+      "fields" : {
+        "distance" : [ 52.394525061455695 ],
+        "name" : [ "Tamarind restaurant" ]
+      }
+    } ]
+chú ý khoảng cách trả về là khoảng cách trực tiếp, không phải khoảng cách theo đường đi.
+
+***********************
+6, Tìm các restaurants mà cách trung tâm thành phố ít nhất là 15km và nhiều nhất là 100km 
+dùng geo_distance_range filter 
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"query": {
+  "filtered": {
+    "query": {"match_all": {}},
+    "filter": {
+      "geo_distance_range": {
+        "from": "15km",
+        "to": "100km",
+        "location": {"lat": 1.232, "lon": 1.112}
+      }
+    }
+  }
+}
+}' 
+location ở trên là trung tâm thành phố hay nói cách khác nó là mốc để đo các khoảng cách
+
+*******************
+7, Phân loại các restaurants theo khoảng cách: < 200m => restaurants gần, >200m and < 2000m => restaurants gần bình thường, > 2000 => restaurants ở xa
+Hướng giải quyết là dùng distance range aggregation
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"aggregations": {
+  "distanceRanges": {
+    "geo_distance": {
+      "field": "location",
+      "origin": "1.231, 1.012",
+      "unit": "meters",
+      "ranges": [
+        {
+          "key": "Near by Locations",
+          "to": 200
+        },
+        {
+          "key": "Medium distance Locations",
+          "from": 200,
+          "to": 2000
+        },
+        {
+          "key": "Far Away Locations",
+          "from": 2000
+        }
+      ]
+    }
+  }
+}
+}'
+origin chính là điểm mốc để tính các khoảng cách
+"aggregations" : {
+    "distanceRanges" : {
+      "buckets" : [ {
+        "key" : "Near by Location",
+        "from" : 0.0,
+        "to" : 200.0,
+        "doc_count" : 0
+      }, {
+        "key" : "Medium distance Locations",
+        "from" : 200.0,
+        "to" : 2000.0,
+        "doc_count" : 0
+      }, {
+        "key" : "Far Away Locations",
+        "from" : 2000.0,
+        "doc_count" : 2
+      } ]
+    }
+  }
+
+
+**************
+8, Aggregating restaurants dựa trên nearness của chúng (dựa trên geohash grids)
+dựa trên kết quả trả về của việc phân loại này user sẽ thấy được một bức tranh địa lý cách các restaurants được phân bố.
+hướng giải quyết là dùng geohash_grid aggregation
+
+curl -XPOST 'http://localhost:9200/restaurants/_search?pretty' -d '{
+"size": 0,
+"aggs": {
+  "DifferentGrids": {
+    "geohash_grid": {
+      "field": "location",
+      "precision": 6
+    },
+    "aggs": {
+      "restaurants": {
+        "top_hits": {}
+      }
+    }
+  }
+}
+}'
+
+Chú ý: size: 0 ở đây để nói elasticsearch không trả về tập hits của query
+precision là độ chính xác có giá trị từ 1..12 (1 là thấp nhất, 12 là cao nhất)
+
+ta dùng thêm một aggregations khác bên trong geohash_grid. Để mỗi kết quả của aggregation không chỉ trả về key và doc_count mà nó còn trả về một tập hợp matched docs
 

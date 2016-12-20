@@ -1,4 +1,16 @@
- curl -X PUT "localhost:9200/news/public/_mapping" -d ' {
+Chú ý:
+Có thể configurate các settings cho index theo 2 cách
+1, Config trong lúc tạo index
+curl -XPUT 'http://localhost:9200/news' -d '{
+"settings": {}
+"mappings": {}
+
+2, Update settings khi mà index đã tồn tại
+curl -XPOST 'http://localhost:9200/news/article/_mapping' -d '
+curl -XPOST 'http://localhost:9200/news/_setting' -d '{
+
+
+curl -X PUT "localhost:9200/news/public/_mapping" -d ' {
 quote> "public": {
 quote> "properties": {
 quote> "Title": {"type": "string"},

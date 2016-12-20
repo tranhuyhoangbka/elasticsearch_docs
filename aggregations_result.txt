@@ -21,6 +21,32 @@ có thể thay thế từ khóa aggregations == aggs
 aggregationType: term, dành cho string field, date_histogram: dùng cho một thành phần thời gian vd: day, month, hour,min...
 geo:...
 
+Để bỏ qua tập hit khi query để chỉ lấy kết quả của aggregations ta set size: 0. ví dụ:
+curl -XPOST '...' -d '{
+size: 0,
+query: {}
+aggs: {}
+
+Chú ý để dùng được script trong function_score ta cần enabling dynamic scripting
+trong file config: /etc/elasticsearch/elasticsearch.yml thêm dòng:
+
+- Với elasticsearch <1.6 thêm dòng sau:
+script.disable_dynamic: false (with elastic version < 1.6)
+- Với elasticsearch > 1.6 thêm 2 dòng sau:
+script.inline: on
+script.indexed: on
+
+sau đó restart lại elasticsearch
+
+default scripting language is groovy (cụ thể xem https://www.elastic.co/guide/en/elasticsearch/reference/1.5/modules-scripting.html) 
+
+Bình thường thì aggs chỉ tả về key và doc_count. Nếu muốn mỗi aggregation trả về thêm cả matched docs ta cần thêm một aggs mới vào aggs ban đầu:
+"aggs": {
+      "restaurants": {
+        "top_hits": {}  #quan trọng
+      }
+    }
+
 Example: use aggregation with filter
 
 curl -XPOST 'http://localhost:9200/products/_search?pretty' -d '{

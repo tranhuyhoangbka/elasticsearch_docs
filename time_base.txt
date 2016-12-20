@@ -1,0 +1,305 @@
+Handle time based data: là nói về những index và data được nạp vào thay đổi theo thời gian 
+ví dụ index lưu các bài viết mới nhất hàng ngày từ facebook
+Trong time based data, chú ý rằng ta cần tạo một new index cho các khoảng thời gian xác định vd hàng giờ, hàng ngày, tuần...
+
+1, Tạo một index template
+Bình thường khi chúng ta index documents nếu index chưa được tạo thì elasticsearch sẽ tạo mới index một cách
+tự động với các default settings. 
+Để việc tạo index tự động đó chấp nhận một custom settings thì chúng ta sử dụng index template.
+Tạo một index template
+
+curl -XPUT 'http://localhost:9200/_template/logstash' -d '{
+  "template": "logstash-*",
+  "order": 0,
+  "settings": {
+    "number_of_shards": 2
+  },
+  "mappings": {
+    "logs": {
+      "_source": {
+        "enabled": false
+      }
+    }
+  }
+}'
+
+ở đây template có tên là logstash, nơi chúng ta đã định nghĩa custom setting và custom mapping. template field
+sẽ định nghĩa name patterm của các index mà sẽ chấp nhận template này. order field để xét độ ưu tiên mà elasticsearch sẽ sử dụng template khi tạo index
+
+*************
+2, Delete a template
+
+curl -XDELETE 'http://localhost:9200/_template/logstash'
+
+3, GET info of a template
+
+curl -XGET 'http://localhost:9200/_template/logstash'
+
+4, Vấn đề multiple matching của templates
+trong trường hợp index được tạo match với nhiều templates thì tất cả các setting trong các templates sẽ được
+merge để tạo ra setting cho index mới. Trong trường hợp có một field bị conflict thì order field trong các
+template sẽ được dùng để giải quyết vấn đề
+
+• template 1 :
+curl -XPUT localhost:9200/_template/logstash1 -d '{
+"template": "logstash-*",
+"order": 0,
+"settings": {
+"number_of_shards": 2
+},
+"mappings": {
+"logs": {
+"_source": {
+"enabled": false
+}
+}
+}
+}'
+
+• template 2 :
+curl -XPUT localhost:9200/_template/logstash2 -d ' {
+"template": "logs*",
+"order": 1,
+"settings": {
+"number_of_shards": 3
+},
+"mappings": {
+"logs": {
+"_source": {
+"enabled": false
+}
+}
+}
+}'
+Giả sử một index có tên logstash-21-04-2015 được tạo thì nó sẽ match cả 2 template thì khi đó mọi setting của
+2 template sẽ được merge, còn phần number_of_shards sẽ là 2 vì template 1 có độ ưu tiên cao hơn.
+
+*******************
+5, Overriding defaut settings cho tất cả index
+để thực hiện việc overriding settings cho tất cả index ta cần tạo một index template có template field là "*"
+
+curl -XPUT 'http://localhost:9200/_template/forall' -d '{
+  "template": "*",
+  "order": 2,
+  "settings": {
+    "number_of_shards": 3
+  },
+  "mappings": {
+    "logs": {
+      "_all": {"enabled": false}
+    }
+  }
+}'
+
+6, Overriding mapping cho tất cả các types trong một index
+
+curl -XPUT 'http://localhost:9200/data-index' -d '{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "_default_": {
+      "_all": {"enabled": false}
+    },
+    "type1": {
+      "_all": {"enabled": true}
+    }
+  }
+}'
+ví dụ trên thì data-index index chỉ có type1 là _all được enable còn các type khác bị disable 
+
+***************
+7, Overriding default field settings
+Bình thường khi index một document nếu một field mà không được định nghĩa trong mapping thì type của field sẽ được phỏng đoán theo dữ liệu của nó.
+Dynamic templates được dùng cho dynamic mapping khi chúng ta cần thêm một field mới.
+
+curl -XPUT 'http://localhost:9200/data-index' -d '{
+  "mappings": {
+    "my_type": {
+      "dynamic_templates": [
+        {
+          "customdate": {
+            "match": "date_*",
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "date",
+              "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd"
+            }
+          }
+        },
+        {
+          "customstring": {
+            "match": "*",
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "string",
+              "analyzer": "my-analyzer"
+            }
+          }
+        }
+      ]
+    }
+  }
+}'
+chúng ta đã định nghĩa 2 templates là customdate và customstring. Template đầu tiên là customdate sẽ mapping
+các new field mà có tên bắt đầu với "date_" tới type là date và có format nhất định.
+
+customstring template sẽ ánh xạ một new field với tên bất kỳ tới type là string và có một custom analyzer.
+
+Các new field được đối chiếu với các template theo thứ tự định nghĩa của template.
+
+**********************
+8, Search for time based data
+
+giả sử cứ một ngày lại có một index mới dạng logstash-YYYY-MM-dd. Muốn search cho tất cả các documents mà được tạo cách đây
+không quá 3 ngày và có company name là cisco 
+POST /logstash-*/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+             "created_at": {"gt": "now-3d", "lt": "now"}
+          }
+        },
+        {
+          "term": {
+            "company": "cisco"
+          }
+        }
+      ]
+    }
+  }
+}
+
+Có thể xác định rõ ràng các index nào cần search như sau:
+POST /logstash-2015-03-05,logstash-2015-03-04,logstash-2015-03-03/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "range": {
+            "created_at": {"gt": "now-3d", "lt": "now"}
+          }
+        },
+        {
+          "term": {
+            "company": "cisco"
+          }
+        }
+      ]
+    }
+  }
+}
+
+********************************
+9, Shard filtering
+Với các index mà mới được tạo thường có mức độ quan trọng cao hơn, thường xuyên được sử dụng hơn các index cũ
+vì vậy để tăng hiệu năng ta cần lưu các index mới vào các node mà có cấu hình cao (nhiều RAM), các index cũ
+vào các node có cấu hình thấp hơn.
+
+Để làm được điều đó ta cần thực hiện các bước sau:
+-  Trong file setting elasticsearch.yml của mỗi node ta thêm dòng tương tự như sau:
+   ./bin/elasticsearch –node.memory 16G   (máy có 16G RAM)
+   ./bin/elasticsearch –node.memory 8G   (máy có 8G RAM)
+memory key có thể thay thế bởi bất kỳ một tên tùy chọn khác. "memory" được gọi là key best_node. Với cách này ta có thể nhóm các
+node khác nhau nhưng có cùng memory trong một group.
+
+- Giả sử có 2 index là logstash-02-07-2015, logstash-02-06-2015. Trong đó logstash-02-07-2015 là current index có độ quan trọng
+cao hơn vì vậy ta cần lưu nó trên node có cấu hình cao. Còn logstash-02-06-2015 lưu ở máy có cấu hình thấp hơn. Để làm được điều này ta cần chạy request trên trên mỗi node
+
+curl -XPUT 'http://localhost:9200/logstash-02-07-2015' -d '{
+"settings": {
+  "index.routing.allocation.include.memory": "16G"
+}
+}'
+
+curl -XPUT 'http://localhost:9200/logstash-02-06-2015' -d '{
+"settings": {
+  "index.routing.allocation.include.memory": "8G"
+}
+}'
+
+**************************
+10, Sử dụng optimized API trên các index cũ 
+curl -XPOST 'http://localhost:9200/logstash-02-06-2015/_optimize?max_num_segments=1'
+Ta thấy các new index thường là read only, còn các old index thường được write. Vì vậy để tăng performance ta cần
+dùng optimize API để ép một shard merge các segments của nó thành 1 segment.
+
+****************************
+11, Closing older index
+Có những index cũ mà hầu như không bao giờ được access. Nhưng nó vẫn chiếm cpu, main memory,...khi nó vẫn ở trong node của nó. vì thế ta sẽ dùng close API để close index này lại. Việc close này sẽ block hoàn toàn việc read, write của index này. Index sẽ vẫn còn lại trong cluster mà không dùng bất cứ tài nguyên nào ngoại trừ disk space. 
+Ưu điểm của việc close một index là nó dễ dàng được reopen lại.
+
+close a index:
+curl -XPOST 'http://localhost:9200/logstash-02-06-2015/_close'
+
+open a index
+curl -XPOST 'http://localhost:9200/logstash-02-06-2015/_open'
+
+************************
+12, Tạo một bản sao lưu của index và phục hồi nó
+Có những index rất là cũ và chúng ta cần remove nó khỏi hệ thống để sử dụng lại bộ nhớ mà nó chiếm giữ
+Chúng ta có thể lưu index cũ đó tại một nơi nào đó trong shared disk hoặc một số third party storage 
+service. Vì lý do nào đó chúng ta cần sử dụng lại nó trong tương lai.
+Elasticsearch cung cấp snapshot-restore API cho mục đích đó.
+
+a) Đăng ký một repository trong elasticsearch 
+Để tạo một snapshot cho index đầu tiên ta cần đăng ký một repository trong elasticsearch:
+curl -XPUT 'http://localhost:9200/_snapshot/index_backup' -d '{
+  "type": "fs",
+  "settings": {
+    "compress": "true",
+    "location": "/home/huyhoang/Documents/backup_elasticsearch"
+  }
+}'
+type field: fs nghĩa là ta sẽ tạo repository trong filesystem.
+* Chú ý để elasticsearch nhận được location /home/huyhoang/Documents/backup_elasticsearch để mount
+filesystem tới đó cần phải thêm setting vào file elasticsearch.yml như sau:
+path.repo: ["/home/huyhoang/Documents/backup_elasticsearch"]
+và cần phải set permission tới thư mục backup_elasticsearch tới 777
+
+Nếu sử dụng một external storage plugin như AWS thì type là s3. Và setting được thay đổi như sau:
+curl -XPUT 'http://localhost:9200/_snapshot/backup_s3' -d '{
+"type": "s3",
+"settings": {
+  "bucket": "s3_backup",
+  "region": "eu-west-1"
+}
+}'
+
+b) Tạo một snapshot (tạo một bản backup)
+- backup tất cả index trong cluster:
+curl -XPUT 'http://localhost:9200/_snapshot/index_backup/snap01'
+
+- backup tất cả index và chờ đến khi nào backup xong mới thực hiện request tiếp theo:
+curl -XPUT 'http://localhost:9200/_snapshot/index_backup/snap01?wait_for_completion=true'
+
+- backup cho một số index xác định:
+curl -XPUT 'http://localhost:9200/_snapshot/index_backup/snap01' -d '{
+"indices": "logstash-20-06-2015,logstash-20-05-2015",
+"ignore_unavailable": "true"
+}'
+setting ignore_unavailable: true sẽ bỏ qua các index bị lỗi trong quá trình tạo snapshot
+
+c) Phục hồi một snapshot
+Chú ý: một index đang tồn tại chỉ được restore nếu nó đã được closed và có số lượng shards bằng số
+lượng shards của index trong snapshot.
+
+- restore toàn bộ index có trong snapshot
+  curl -XPOST 'http://localhost:9200/_snapshot/index_backup/snap01/_restore'
+  Mặc định thì tất cả index trong snapshot sẽ được phục hồi.
+
+- restore chỉ một số index có trong snapshot
+curl -XPOST 'http://localhost:9200/_snapshot/index_backup/snap01/_restore' -d '
+{
+  "indices": "logstash-20-06-2015,logstash-20-05-2015",
+  "ignore_unavailable": "true"
+}'
+
+*************************
+13, Curator
+Curator là một tool được phát triển bằng python có khả năng thực hiện nhiều chức năng time based data cho elasticsearch như shard allocation, open and close index, optimize...

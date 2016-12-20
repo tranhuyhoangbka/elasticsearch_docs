@@ -25,6 +25,11 @@ Ví dụ sau dùng field function để đánh dấu date field như một cách
 Với query này các match documents được sắp xếp theo date
 
 **********
+Chú ý để dùng được script trong function_score ta cần enabling dynamic scripting
+trong file config: elasticsearch.yml thêm dòng:
+script.disable_dynamic: false
+sau đó restart lại elasticsearch (cụ thể xem https://www.elastic.co/guide/en/elasticsearch/reference/1.5/modules-scripting.html)
+
 Dùng script score function để đăng ký ngày của năm như một loại score, sau đó tính score chung bằng tổng của day score và PatientPastHealthIndex
 
 {
